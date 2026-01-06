@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Dependencies
+node_modules/
+**/node_modules/
+.bun/
+
+# Build outputs
+dist/
+**/dist/
+*.tsbuildinfo
+
+# Database
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Environment
+.env
+.env.local
+.env.example
+
+# IDEs
+.vscode/
+.idea/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Readmes and Docs
+README.md
+**/README.md
+CLAUDE.md
+**/CLAUDE.md
