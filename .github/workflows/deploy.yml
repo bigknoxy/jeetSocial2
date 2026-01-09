@@ -8,8 +8,9 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME_APP: ${{ github.repository }}-app
-  IMAGE_NAME_MODERATION: ${{ github.repository }}-moderation
+  # Use lowercase for image names as required by GHCR
+  IMAGE_NAME_APP: bigknoxy/jeetsocial2-app
+  IMAGE_NAME_MODERATION: bigknoxy/jeetsocial2-moderation
 
 jobs:
   build-and-push:
@@ -34,12 +35,20 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_APP }}
+          tags: |
+            type=raw,value=latest
+            type=ref,event=branch
+            type=sha
 
       - name: Extract metadata (tags, labels) for Moderation
         id: meta-moderation
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_MODERATION }}
+          tags: |
+            type=raw,value=latest
+            type=ref,event=branch
+            type=sha
 
       - name: Build and push App image
         uses: docker/build-push-action@v5
