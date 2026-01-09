@@ -13,8 +13,7 @@ services:
       - app
 
   moderation:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-bigknoxy}/jeetsocial2-moderation:latest
-    build: ./moderation
+    image: ghcr.io/bigknoxy/jeetsocial2-moderation:latest
     restart: always
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:3001/moderate" ]
@@ -23,10 +22,7 @@ services:
       retries: 3
 
   app:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-bigknoxy}/jeetsocial2-app:latest
-    build:
-      context: .
-      dockerfile: ./app/Dockerfile
+    image: ghcr.io/bigknoxy/jeetsocial2-app:latest
     depends_on:
       - moderation
     environment:
