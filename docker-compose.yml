@@ -14,6 +14,7 @@ services:
 
   moderation:
     image: ghcr.io/bigknoxy/jeetsocial2-moderation:latest
+    build: ./moderation
     restart: always
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:3001/moderate" ]
@@ -23,6 +24,11 @@ services:
 
   app:
     image: ghcr.io/bigknoxy/jeetsocial2-app:latest
+    build:
+      context: .
+      dockerfile: ./app/Dockerfile
+    ports:
+      - "3000:3000"
     depends_on:
       - moderation
     environment:
