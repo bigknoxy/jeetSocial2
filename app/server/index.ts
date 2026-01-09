@@ -102,8 +102,8 @@ app.post('/posts/:id/like', async (c) => {
     }
 });
 
-// Serve static files from the 'dist' directory
-app.use('/assets/*', serveStatic({ root: './dist' }));
+// Serve static files from the 'dist' directory (catch all files first)
+app.use('*', serveStatic({ root: './dist' }));
 
 // Fallback all other routes to index.html for SPA
 app.get('/*', async (c) => {
