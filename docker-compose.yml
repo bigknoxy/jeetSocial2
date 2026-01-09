@@ -1,8 +1,20 @@
 services:
-  moderation:
-    build: ./moderation
+  caddy:
+    image: caddy:latest
+    restart: always
     ports:
-      - "3001:3001"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+  moderation:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-bigknoxy}/jeetsocial2-moderation:latest
+    build: ./moderation
     restart: always
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:3001/moderate" ]
@@ -11,11 +23,10 @@ services:
       retries: 3
 
   app:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-bigknoxy}/jeetsocial2-app:latest
     build:
       context: .
       dockerfile: ./app/Dockerfile
-    ports:
-      - "3000:3000"
     depends_on:
       - moderation
     environment:
@@ -33,3 +44,5 @@ services:
 
 volumes:
   sqlite_data:
+  caddy_data:
+  caddy_config:

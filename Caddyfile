@@ -1,0 +1,7 @@
+jeetsocial.com {
+    reverse_proxy app:3000
+}
+
+www.jeetsocial.com {
+    redir https://jeetsocial.com{uri}
+}
