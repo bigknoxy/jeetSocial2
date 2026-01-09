@@ -196,7 +196,17 @@ function HomePage() {
     return (
         <main className="main-content">
             <section className="card brand-section">
-                <h1 className="rainbow-text">jeetSocial</h1>
+                <div className="brand-header">
+                    <motion.img
+                        src="/favicon.png"
+                        alt="Mascot"
+                        className="brand-mascot"
+                        initial={{ scale: 0, rotate: -20 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ duration: 0.5, type: 'spring' }}
+                    />
+                    <h1 className="rainbow-text">jeetSocial</h1>
+                </div>
                 <p className="hero-intro">
                     A safe, anonymous space to spread kindness and support.
                 </p>
