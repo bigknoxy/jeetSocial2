@@ -156,7 +156,7 @@ body {
 
 .learn-more {
   display: inline-block;
-  margin: 1.5rem 0 3rem;
+  margin: 1rem 0 2rem;
   font-size: 1.1rem;
   transition: transform 0.3s ease;
 }
@@ -402,9 +402,9 @@ body {
 
 .share-section {
   text-align: left;
-  margin-top: 4rem;
+  margin-top: 2rem;
   border-top: 1px solid var(--glass-border);
-  padding-top: 3rem;
+  padding-top: 2rem;
 }
 
 .share-section h2 {
