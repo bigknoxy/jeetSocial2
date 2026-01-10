@@ -28,15 +28,16 @@ jeetSocial is a modern, anonymous social network where users can share uplifting
 
 ### Deployment
 1. Clone the repository.
-2. Run `docker-compose up -d`.
-3. Open `http://localhost:3000` in your browser.
+2. Run `docker compose up -d`.
+3. Open `https://jeetsocial.com` (configured via Caddy).
 
 ## 👨‍💻 Development
 
-### Prerequisites
-- [Bun](https://bun.sh/)
+### Using Docker (Recommended)
+1. Run `docker compose -f docker-compose.local.yml up --build`.
+2. Open `http://localhost:3000` in your browser.
 
-### Running Locally
+### Running with Bun (Manual)
 1. **Moderation Service**:
    ```bash
    cd moderation
