@@ -84,12 +84,12 @@ body {
 
 .brand-section {
   text-align: center;
-  padding: 4rem 2rem;
+  padding: 3rem 1.5rem;
   background: radial-gradient(circle at top right, rgba(250, 204, 21, 0.05), transparent),
     radial-gradient(circle at bottom left, rgba(45, 183, 209, 0.05), transparent),
     var(--card-bg);
   animation: heroEntrance 1s ease-out;
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
 }
 
 @keyframes heroEntrance {
@@ -156,7 +156,7 @@ body {
 
 .learn-more {
   display: inline-block;
-  margin: 1rem 0 2rem;
+  margin: 0.75rem 0 1.5rem;
   font-size: 1.1rem;
   transition: transform 0.3s ease;
 }
@@ -402,9 +402,9 @@ body {
 
 .share-section {
   text-align: left;
-  margin-top: 2rem;
+  margin-top: 1.5rem;
   border-top: 1px solid var(--glass-border);
-  padding-top: 2rem;
+  padding-top: 1.5rem;
 }
 
 .share-section h2 {
@@ -712,8 +712,28 @@ input:checked+.slider:before {
     display: none !important;
   }
 
-  .form-controls {
-    justify-content: flex-end;
+  .brand-section {
+    padding: 2rem 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .brand-section .hero-intro {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+  }
+
+  .quick-facts {
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .learn-more {
+    margin: 0.5rem 0 1rem;
+  }
+
+  .share-section {
+    margin-top: 1rem;
+    padding-top: 1rem;
   }
 
   .post-button {
