@@ -57,7 +57,7 @@ app.post('/posts', async (c) => {
         const modResult = await modResponse.json() as { allowed: boolean; reason?: string };
 
         if (!modResult.allowed) {
-            return c.json({ error: modResult.reason || 'Content rejected by moderation' }, 403);
+            return c.json({ error: modResult.reason || 'Let\'s keep it kind! Your message was slightly too negative for our community guidelines.' }, 403);
         }
     } catch (e) {
         console.error('Moderation service error:', e);

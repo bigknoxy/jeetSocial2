@@ -5,6 +5,40 @@ import { formatDistanceToNow } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import EmojiPicker, { Theme, EmojiClickData } from 'emoji-picker-react';
+import { X } from 'lucide-react';
+
+interface Toast {
+    id: number;
+    message: string;
+    type: 'info' | 'error' | 'success';
+}
+
+function ToastContainer({ toasts, removeToast }: { toasts: Toast[], removeToast: (id: number) => void }) {
+    return (
+        <div className="toast-container">
+            <AnimatePresence>
+                {toasts.map((toast) => (
+                    <motion.div
+                        key={toast.id}
+                        initial={{ opacity: 0, x: 20, scale: 0.9 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: 20, scale: 0.9 }}
+                        className={`toast toast-${toast.type}`}
+                        onClick={() => removeToast(toast.id)}
+                    >
+                        <div className="toast-content">
+                            {toast.type === 'error' ? <Shield size={18} /> : <Info size={18} />}
+                            <span>{toast.message}</span>
+                        </div>
+                        <button className="toast-close">
+                            <X size={14} />
+                        </button>
+                    </motion.div>
+                ))}
+            </AnimatePresence>
+        </div>
+    );
+}
 
 interface Post {
     id: number;
@@ -43,6 +77,7 @@ function HomePage() {
     const [isLoading, setIsLoading] = useState(false);
     const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [toasts, setToasts] = useState<Toast[]>([]);
     const ws = useRef<WebSocket | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const pickerRef = useRef<HTMLDivElement>(null);
@@ -96,6 +131,16 @@ function HomePage() {
         ws.current = socket;
     };
 
+    const addToast = (message: string, type: 'info' | 'error' | 'success' = 'info') => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message, type }]);
+        setTimeout(() => removeToast(id), 5000);
+    };
+
+    const removeToast = (id: number) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+    };
+
     const fetchPosts = async () => {
         try {
             const res = await fetch(`/posts?type=${view}`);
@@ -121,6 +166,7 @@ function HomePage() {
             if (res.ok) {
                 setContent('');
                 setShowEmojiPicker(false);
+                addToast('Kindness yeeted successfully! ✨', 'success');
                 confetti({
                     particleCount: 100,
                     spread: 70,
@@ -128,10 +174,10 @@ function HomePage() {
                     colors: ['#facc15', '#ff6b6b', '#4ecdc4']
                 });
             } else {
-                alert(data.error || 'Something went wrong');
+                addToast(data.error || 'Something went wrong', 'error');
             }
         } catch (e) {
-            alert('Failed to connect to server');
+            addToast('Failed to connect to server', 'error');
         } finally {
             setIsLoading(false);
         }
@@ -195,6 +241,7 @@ function HomePage() {
 
     return (
         <main className="main-content">
+            <ToastContainer toasts={toasts} removeToast={removeToast} />
             <section className="card brand-section">
                 <div className="brand-header">
                     <motion.img

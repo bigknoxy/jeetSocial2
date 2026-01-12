@@ -6,7 +6,8 @@ jeetSocial is a modern, anonymous social network where users can share uplifting
 
 ## ✨ Features
 - **Anonymous Messaging**: Randomly generated usernames for every post.
-- **Kindness Focused**: Integrated moderation service rejects unkind content.
+- **AI-Powered Moderation**: Advanced moderation using the `unbiased-toxic-roberta` model to maintain a kind environment.
+- **Modern Toast System**: Friendly, animated notifications for all user interactions.
 - **Real-time Feed**: New posts and likes appear instantly via WebSockets.
 - **Kindness Points**: Upvote messages to spread more positivity.
 - **Modern UI**: Dark theme with rainbow accents and smooth animations.
@@ -61,7 +62,11 @@ jeetSocial is a modern, anonymous social network where users can share uplifting
 Copy `.env.example` to `.env` and adjust the variables.
 
 ## ⚖️ Moderation
-The moderation service is a separate microservice. It currently uses keyword filtering but is designed to be swappable with AI-based moderation.
+The moderation service uses a two-tier approach:
+1. **AI Inference**: Primary moderation via a dedicated Python service running the `unbiased-toxic-roberta` model.
+2. **Keyword Fallback**: A secondary safety net that kicks in if the AI service is unavailable, ensuring continuous protection.
+
+Rejection messages are designed to be friendly "Kindness Reminders" to encourage positive rephrasing rather than simple blocking.
 
 ## 📦 Architecture
 - `app/server`: Hono backend with Bun-SQLite.
