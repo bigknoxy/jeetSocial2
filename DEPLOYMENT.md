@@ -75,7 +75,8 @@ Once deployed, you can verify your admin credentials:
 2. Enter the `ADMIN_USERNAME` and `ADMIN_PASSWORD` you set in the VPS `.env` file.
 3. You should now have access to the Moderation Dashboard with the new custom confirmation modal.
 
-## ⚠️ Important Security Notes
+## ⚠️ Important Security & Configuration Notes
+- **Domain Configuration**: The `Caddyfile` in the project root is currently configured for `jeetsocial.com`. If you are using a different domain, you **MUST** update the `Caddyfile` on your VPS (or in the repository before deploying) to match your domain.
 - **HTTPS**: Caddy handles SSL automatically. Ensure your domain's DNS is correctly set up.
 - **Passwords**: Never commit your `.env` file to version control. Use GitHub Secrets for sensitive data in CI/CD.
 - **Backups**: The SQLite database is stored in a Docker volume named `sqlite_data`. Ensure you have a backup strategy for this volume.
