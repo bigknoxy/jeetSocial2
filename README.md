@@ -61,6 +61,20 @@ jeetSocial is a modern, anonymous social network where users can share uplifting
 ## 🔒 Configuration
 Copy `.env.example` to `.env` and adjust the variables.
 
+### Admin Credentials
+To access the moderation dashboard, you must set the following environment variables in your `.env` file or your deployment environment:
+
+- `ADMIN_USERNAME`: The username for the admin dashboard (e.g., `admin`).
+- `ADMIN_PASSWORD`: A secure password for the admin dashboard.
+
+**Example `.env`:**
+```env
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=your_secure_password_here
+```
+
+In a production Docker deployment, ensure these are either in the `.env` file referenced by `docker-compose.yml` or passed directly as environment variables.
+
 ## ⚖️ Moderation
 The moderation service uses a two-tier approach:
 1. **AI Inference**: Primary moderation via a dedicated Python service running the `unbiased-toxic-roberta` model.
