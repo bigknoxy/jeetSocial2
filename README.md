@@ -61,6 +61,9 @@ jeetSocial is a modern, anonymous social network where users can share uplifting
 ## 🔒 Configuration
 Copy `.env.example` to `.env` and adjust the variables.
 
+### Admin Dashboard
+Access the moderation dashboard at `/admin`. You will be redirected to a login page where you must enter the credentials defined in your environment variables.
+
 ### Admin Credentials
 To access the moderation dashboard, you must set the following environment variables in your `.env` file or your deployment environment:
 

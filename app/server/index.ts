@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serveStatic } from 'hono/bun';
+import { basicAuth } from 'hono/basic-auth';
 import type { Server } from 'bun';
 import db from './db/schema';
 import { migrate } from './db/migrations';
@@ -75,6 +76,53 @@ app.post('/posts', async (c) => {
     broadcast({ type: 'NEW_POST', post: newPost });
 
     return c.json(newPost);
+});
+
+// Custom Manual Auth for Admin (to prevent browser prompt)
+async function adminAuthManual(c: any, next: any) {
+    const authHeader = c.req.header('Authorization');
+    const expectedUsername = process.env.ADMIN_USERNAME || 'admin';
+    const expectedPassword = process.env.ADMIN_PASSWORD || 'password';
+
+    // Use Buffer for more robust encoding in Bun/Node
+    const credentials = Buffer.from(`${expectedUsername}:${expectedPassword}`).toString('base64');
+    const expectedAuth = `Basic ${credentials}`;
+
+    if (authHeader === expectedAuth) {
+        return await next();
+    }
+
+    console.log(`[AUTH] Failed admin login attempt from ${c.req.header('x-forwarded-for') || 'unknown'}`);
+
+    // Return 401 without WWW-Authenticate header to avoid browser popup
+    return c.json({ error: 'Unauthorized' }, 401);
+}
+
+app.get('/admin/posts', adminAuthManual, (c) => {
+    const posts = db.query('SELECT * FROM posts ORDER BY created_at DESC').all();
+    return c.json(posts);
+});
+
+app.delete('/admin/posts/:id', adminAuthManual, (c) => {
+    const id = c.req.param('id');
+
+    const post = db.query('SELECT * FROM posts WHERE id = ?').get(id) as any;
+
+    if (!post) {
+        return c.json({ error: 'Post not found' }, 404);
+    }
+
+    db.run('DELETE FROM posts WHERE id = ?', [id]);
+
+    // Broadcast deletion to all clients
+    broadcast({ type: 'DELETE_POST', postId: parseInt(id) });
+
+    return c.json({ success: true, postId: parseInt(id) });
+});
+
+// Admin login check for UI (simplifies frontend logic)
+app.get('/admin/check-auth', adminAuthManual, (c) => {
+    return c.json({ authenticated: true });
 });
 
 app.post('/posts/:id/like', async (c) => {
