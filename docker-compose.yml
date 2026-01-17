@@ -40,6 +40,8 @@ services:
       - MODERATION_SERVICE_URL=http://moderation:3001
       - DATABASE_PATH=/app/data/social.db
       - NODE_ENV=production
+    env_file:
+      - .env
     volumes:
       - sqlite_data:/app/data
     restart: always
