@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import EmojiPicker, { Theme, EmojiClickData } from 'emoji-picker-react';
 import { X } from 'lucide-react';
+import AdminPage from './pages/AdminPage';
+import AdminLoginPage from './pages/AdminLoginPage';
 
 interface Toast {
     id: number;
@@ -121,6 +123,8 @@ function HomePage() {
                 setPosts(prev => [data.post, ...prev].slice(0, 50));
             } else if (data.type === 'UPDATE_POST') {
                 setPosts(prev => prev.map(p => p.id === data.post.id ? data.post : p));
+            } else if (data.type === 'DELETE_POST') {
+                setPosts(prev => prev.filter(p => p.id !== data.postId));
             }
         };
 
@@ -514,6 +518,8 @@ export default function App() {
                 <Routes>
                     <Route path="/" element={<HomePage />} />
                     <Route path="/about" element={<AboutPage />} />
+                    <Route path="/admin" element={<AdminPage />} />
+                    <Route path="/admin/login" element={<AdminLoginPage />} />
                 </Routes>
                 <Footer />
             </div>
