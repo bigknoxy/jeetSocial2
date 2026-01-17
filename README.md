@@ -28,9 +28,17 @@ jeetSocial is a modern, anonymous social network where users can share uplifting
 - [Docker Compose](https://docs.docker.com/compose/install/)
 
 ### Deployment
+**Option 1: Manual Docker Compose**
 1. Clone the repository.
-2. Run `docker compose up -d`.
-3. Open `https://jeetsocial.com` (configured via Caddy).
+2. Create a `.env` file with your credentials.
+3. Run `docker compose up -d`.
+
+**Option 2: GitHub Actions (Automated)**
+The repository includes a workflow to deploy to a VPS. You must set the following **GitHub Secrets**:
+- `VPS_IP`, `VPS_USER`, `SSH_PRIVATE_KEY` (Server Access)
+- `DOCKER_PASSWORD` (Registry Access)
+- `ADMIN_USERNAME`, `ADMIN_PASSWORD` (App Credentials)
+- `SESSION_SECRET` (App Security)
 
 ## 👨‍💻 Development
 
