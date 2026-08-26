@@ -1,12 +1,12 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serveStatic } from 'hono/bun';
-import { basicAuth } from 'hono/basic-auth';
 import type { Server } from 'bun';
 import db from './db/schema';
 import { migrate } from './db/migrations';
 import { generateUsername } from './services/username';
 import { checkRateLimit, hashIP } from './services/rate-limit';
+import { verifyToken, signToken, safeEqualStrings } from './services/auth';
 
 // Global state for WebSockets
 const clients = new Set<any>();
@@ -14,9 +14,23 @@ const clients = new Set<any>();
 // Initialize DB
 migrate(db);
 
+// ---------------------------------------------------------------------------
+// #13: Fail fast in production without admin credentials
+// ---------------------------------------------------------------------------
+const IS_PROD = process.env.NODE_ENV === 'production';
+if (IS_PROD && (!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD)) {
+    console.error('FATAL: ADMIN_USERNAME and ADMIN_PASSWORD must be set in production.');
+    process.exit(1);
+}
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'password';
+
 const app = new Hono();
 
 app.use('*', cors());
+
+// Public post columns — never expose ip_hash (#17)
+const PUBLIC_POST_COLS = 'id, username, content, kindness_points, created_at';
 
 // API Routes
 app.get('/posts', (c) => {
@@ -24,9 +38,9 @@ app.get('/posts', (c) => {
     let posts;
 
     if (type === 'top') {
-        posts = db.query('SELECT * FROM posts ORDER BY kindness_points DESC, created_at DESC LIMIT 50').all();
+        posts = db.query(`SELECT ${PUBLIC_POST_COLS} FROM posts ORDER BY kindness_points DESC, created_at DESC LIMIT 50`).all();
     } else {
-        posts = db.query('SELECT * FROM posts ORDER BY created_at DESC LIMIT 50').all();
+        posts = db.query(`SELECT ${PUBLIC_POST_COLS} FROM posts ORDER BY created_at DESC LIMIT 50`).all();
     }
 
     return c.json(posts);
@@ -47,14 +61,18 @@ app.post('/posts', async (c) => {
         return c.json({ error: `Rate limit exceeded. Try again in ${rateLimit.retryAfter}.` }, 429);
     }
 
-    // Moderation
+    // Moderation — #15: bounded timeout AND fail closed
     try {
         const modUrl = process.env.MODERATION_SERVICE_URL || 'http://localhost:3001';
         const modResponse = await fetch(`${modUrl}/moderate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: content })
+            body: JSON.stringify({ text: content }),
+            signal: AbortSignal.timeout(5000),
         });
+        if (!modResponse.ok) {
+            return c.json({ error: 'Moderation service unavailable. Please try again shortly.' }, 503);
+        }
         const modResult = await modResponse.json() as { allowed: boolean; reason?: string };
 
         if (!modResult.allowed) {
@@ -62,15 +80,15 @@ app.post('/posts', async (c) => {
         }
     } catch (e) {
         console.error('Moderation service error:', e);
-        // Fail closed if moderation service is down (optional, but safer for "kindness" focus)
-        // return c.json({ error: 'Moderation service unavailable' }, 503);
+        // #15: fail CLOSED — do not insert unmoderated content
+        return c.json({ error: 'Moderation service unavailable. Please try again shortly.' }, 503);
     }
 
     const username = generateUsername();
     const stmt = db.prepare('INSERT INTO posts (username, content, ip_hash) VALUES (?, ?, ?)');
     const result = stmt.run(username, content, ipHash);
 
-    const newPost = db.query('SELECT * FROM posts WHERE id = ?').get(result.lastInsertRowid) as any;
+    const newPost = db.query(`SELECT ${PUBLIC_POST_COLS} FROM posts WHERE id = ?`).get(result.lastInsertRowid);
 
     // Broadcast to all clients
     broadcast({ type: 'NEW_POST', post: newPost });
@@ -78,35 +96,82 @@ app.post('/posts', async (c) => {
     return c.json(newPost);
 });
 
-// Custom Manual Auth for Admin (to prevent browser prompt)
-async function adminAuthManual(c: any, next: any) {
+// ---------------------------------------------------------------------------
+// #13 + #14: constant-time credential check + signed session tokens
+// ---------------------------------------------------------------------------
+// Constant-time Basic credential check (#13)
+async function checkAdminCredentials(c: any): Promise<boolean> {
     const authHeader = c.req.header('Authorization');
-    const expectedUsername = process.env.ADMIN_USERNAME || 'admin';
-    const expectedPassword = process.env.ADMIN_PASSWORD || 'password';
+    if (!authHeader || !authHeader.startsWith('Basic ')) return false;
+    try {
+        const decoded = atob(authHeader.slice(6));
+        const idx = decoded.indexOf(':');
+        if (idx < 0) return false;
+        return safeEqualStrings(decoded.slice(0, idx), ADMIN_USERNAME)
+            && safeEqualStrings(decoded.slice(idx + 1), ADMIN_PASSWORD);
+    } catch {
+        return false;
+    }
+}
 
-    // Use Buffer for more robust encoding in Bun/Node
-    const credentials = Buffer.from(`${expectedUsername}:${expectedPassword}`).toString('base64');
-    const expectedAuth = `Basic ${credentials}`;
-
-    if (authHeader === expectedAuth) {
+// #14: accept either a valid signed session cookie or Basic credentials
+async function adminAuth(c: any, next: any) {
+    const cookieHeader = c.req.header('Cookie') || '';
+    const match = cookieHeader.match(/(?:^|;\s*)admin_session=([^;]+)/);
+    if (match && verifyToken(match[1])) {
+        return await next();
+    }
+    if (await checkAdminCredentials(c)) {
         return await next();
     }
 
-    console.log(`[AUTH] Failed admin login attempt from ${c.req.header('x-forwarded-for') || 'unknown'}`);
-
-    // Return 401 without WWW-Authenticate header to avoid browser popup
+    console.log(`[AUTH] Failed admin auth attempt from ${c.req.header('x-forwarded-for') || 'unknown'}`);
     return c.json({ error: 'Unauthorized' }, 401);
 }
 
-app.get('/admin/posts', adminAuthManual, (c) => {
-    const posts = db.query('SELECT * FROM posts ORDER BY created_at DESC').all();
+// #14: login endpoint exchanges credentials once for an HttpOnly signed cookie
+app.post('/admin/login', async (c) => {
+    const body = await c.req.json<{ username?: string; password?: string }>().catch(() => null);
+    const user = body?.username ?? '';
+    const pass = body?.password ?? '';
+
+    if (!(safeEqualStrings(user, ADMIN_USERNAME) && safeEqualStrings(pass, ADMIN_PASSWORD))) {
+        console.log(`[AUTH] Failed admin login attempt from ${c.req.header('x-forwarded-for') || 'unknown'}`);
+        return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const maxAgeSeconds = 8 * 3600; // 8-hour session
+    const token = signToken(maxAgeSeconds);
+    return c.json(
+        { authenticated: true },
+        {
+            headers: {
+                'Set-Cookie': `admin_session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAgeSeconds}`,
+            },
+        }
+    );
+});
+
+app.post('/admin/logout', (c) => {
+    return c.json(
+        { success: true },
+        {
+            headers: {
+                'Set-Cookie': 'admin_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0',
+            },
+        }
+    );
+});
+
+app.get('/admin/posts', adminAuth, (c) => {
+    const posts = db.query(`SELECT ${PUBLIC_POST_COLS} FROM posts ORDER BY created_at DESC`).all();
     return c.json(posts);
 });
 
-app.delete('/admin/posts/:id', adminAuthManual, (c) => {
+app.delete('/admin/posts/:id', adminAuth, (c) => {
     const id = c.req.param('id');
 
-    const post = db.query('SELECT * FROM posts WHERE id = ?').get(id) as any;
+    const post = db.query('SELECT id FROM posts WHERE id = ?').get(id);
 
     if (!post) {
         return c.json({ error: 'Post not found' }, 404);
@@ -120,14 +185,13 @@ app.delete('/admin/posts/:id', adminAuthManual, (c) => {
     return c.json({ success: true, postId: parseInt(id) });
 });
 
-// Admin login check for UI (simplifies frontend logic)
-app.get('/admin/check-auth', adminAuthManual, (c) => {
+app.get('/admin/check-auth', adminAuth, (c) => {
     return c.json({ authenticated: true });
 });
 
+// #16: like dedupe keyed on server-derived IP hash — client-id header no longer trusted
 app.post('/posts/:id/like', async (c) => {
     const id = c.req.param('id');
-    const clientIdentifier = c.req.header('x-client-id') || 'anonymous';
     const ip = c.req.header('x-forwarded-for') || '127.0.0.1';
     const ipHash = await hashIP(ip);
 
@@ -138,10 +202,10 @@ app.post('/posts/:id/like', async (c) => {
     }
 
     try {
-        db.run('INSERT INTO likes (post_id, client_identifier) VALUES (?, ?)', [id, clientIdentifier]);
+        db.run('INSERT INTO likes (post_id, client_identifier) VALUES (?, ?)', [id, ipHash]);
         db.run('UPDATE posts SET kindness_points = kindness_points + 1 WHERE id = ?', [id]);
 
-        const updatedPost = db.query('SELECT * FROM posts WHERE id = ?').get(id) as any;
+        const updatedPost = db.query(`SELECT ${PUBLIC_POST_COLS} FROM posts WHERE id = ?`).get(id);
         broadcast({ type: 'UPDATE_POST', post: updatedPost });
 
         return c.json(updatedPost);
@@ -169,8 +233,10 @@ function broadcast(data: any) {
     }
 }
 
+const PORT = parseInt(process.env.PORT || '3000', 10);
+
 const server = Bun.serve({
-    port: 3000,
+    port: PORT,
     hostname: '0.0.0.0',
     fetch: (req, server) => {
         if (server.upgrade(req)) {

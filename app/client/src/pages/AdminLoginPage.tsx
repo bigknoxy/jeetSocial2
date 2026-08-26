@@ -11,6 +11,8 @@ export default function AdminLoginPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // #14: credentials are exchanged ONCE for an HttpOnly signed session cookie.
+    // No password is ever stored in sessionStorage/localStorage/JS memory beyond this call.
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
@@ -23,19 +25,14 @@ export default function AdminLoginPage() {
         setIsLoading(true);
 
         try {
-            const authString = btoa(`${username.trim()}:${password.trim()}`);
-            const res = await fetch('/admin/check-auth', {
-                headers: {
-                    'Authorization': `Basic ${authString}`
-                }
+            const res = await fetch('/admin/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: username.trim(), password: password.trim() }),
             });
 
             if (res.ok) {
-                // Store credentials for the session
-                const authData = { username: username.trim(), password: password.trim() };
-                sessionStorage.setItem('adminAuth', JSON.stringify(authData));
-
-                // Add a small delay for the "success" feeling
+                sessionStorage.setItem('adminAuth', 'session'); // non-sensitive flag only
                 setTimeout(() => navigate('/admin'), 500);
             } else if (res.status === 401) {
                 setError('Invalid username or password');
