@@ -17,27 +17,22 @@ export default function AdminPage() {
     const [posts, setPosts] = useState<Post[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isDeleting, setIsDeleting] = useState<Set<number>>(new Set());
-    const [auth, setAuth] = useState<{ username: string; password: string } | null>(null);
+    const [auth, setAuth] = useState<boolean>(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [postToYeet, setPostToYeet] = useState<Post | null>(null);
 
     useEffect(() => {
-        const savedAuth = sessionStorage.getItem('adminAuth');
-        if (!savedAuth) {
+        // #14: session is an HttpOnly cookie — no credentials in JS storage
+        if (!sessionStorage.getItem('adminAuth')) {
             navigate('/admin/login');
             return;
         }
-        const parsedAuth = JSON.parse(savedAuth);
-        setAuth(parsedAuth);
+        setAuth(true);
 
         const fetchPosts = async () => {
             try {
-                const authString = btoa(`${parsedAuth.username}:${parsedAuth.password}`);
-                const res = await fetch('/admin/posts', {
-                    headers: {
-                        'Authorization': `Basic ${authString}`
-                    }
-                });
+                // Cookie sent automatically by the browser
+                const res = await fetch('/admin/posts');
 
                 if (res.ok) {
                     const data = await res.json();
@@ -84,13 +79,8 @@ export default function AdminPage() {
         setIsDeleting(prev => new Set(prev).add(postId));
 
         try {
-            const authString = btoa(`${auth.username}:${auth.password}`);
-            const res = await fetch(`/admin/posts/${postId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Basic ${authString}`
-                }
-            });
+            // Cookie sent automatically by the browser (#14)
+            const res = await fetch(`/admin/posts/${postId}`, { method: 'DELETE' });
 
             if (res.ok) {
                 setPosts(prev => prev.filter(p => p.id !== postId));
@@ -110,9 +100,9 @@ export default function AdminPage() {
         }
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        await fetch('/admin/logout', { method: 'POST' }).catch(() => {});
         sessionStorage.removeItem('adminAuth');
-        localStorage.removeItem('adminAuth');
         navigate('/admin/login');
     };
 

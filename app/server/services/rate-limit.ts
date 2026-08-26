@@ -1,5 +1,6 @@
 import { Context, Next } from 'hono';
 import db from '../db/schema';
+import { timingSafeEqual } from './auth';
 
 export async function checkRateLimit(ipHash: string, actionType: 'post' | 'like') {
     const now = new Date().toISOString();
@@ -29,8 +30,33 @@ export async function checkRateLimit(ipHash: string, actionType: 'post' | 'like'
     return { allowed: true };
 }
 
+/**
+ * Salted HMAC-SHA256 IP hash (#17/#18).
+ * Unsalted SHA-256 over IPv4 is trivially reversible by enumeration.
+ * Uses SESSION_SECRET (previously documented but unused — #20).
+ */
 export async function hashIP(ip: string): Promise<string> {
-    const hasher = new Bun.CryptoHasher("sha256");
-    hasher.update(ip);
-    return hasher.digest("hex");
+    const secret = process.env.SESSION_SECRET || 'jeetsocial-dev-ip-salt';
+    return hashWithSecret(ip, secret);
 }
+
+function hashWithSecret(value: string, secret: string): Promise<string> {
+    const enc = new TextEncoder();
+    const keyPromise = crypto.subtle.importKey(
+        'raw',
+        enc.encode(secret),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+    );
+    return keyPromise.then((key) =>
+        crypto.subtle.sign('HMAC', key, enc.encode(value))
+    ).then((sig) => {
+        const bytes = new Uint8Array(sig);
+        let hex = '';
+        for (const b of bytes) hex += b.toString(16).padStart(2, '0');
+        return hex;
+    });
+}
+
+export { hashWithSecret, timingSafeEqual };
