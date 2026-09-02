@@ -86,7 +86,7 @@ jobs:
             printf "ADMIN_USERNAME=${{ secrets.ADMIN_USERNAME }}\nADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}\nSESSION_SECRET=${{ secrets.SESSION_SECRET }}\n" > ~/jeetsocial/.env
 
       - name: Copy docker-compose and Caddyfile to VPS
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.VPS_IP }}
           username: ${{ secrets.VPS_USER }}
