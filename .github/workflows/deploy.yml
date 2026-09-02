@@ -51,7 +51,7 @@ jobs:
             type=sha
 
       - name: Build and push App image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./app/Dockerfile
@@ -60,7 +60,7 @@ jobs:
           labels: ${{ steps.meta-app.outputs.labels }}
 
       - name: Build and push Moderation image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./moderation
           push: true
